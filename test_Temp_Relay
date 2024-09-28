@@ -1,0 +1,68 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <wiringPi.h>
+
+#define led 26 //change to relay
+// Ham doc du lieu tu file
+float read_temp(char *sensor_file) {
+    FILE *fp;
+    char buf[256];
+    char *temp_str;
+    float temp;
+
+    // Mo file thiet bi cam bien
+    if ((fp = fopen(sensor_file, "r")) == NULL) {
+        perror("Failed to open sensor file");
+        return -1;
+    }
+
+    // doc du lieu tu file
+    if (fread(buf, sizeof(char), 256, fp) < 1) {
+        perror("Failed to read sensor file");
+        fclose(fp);
+        return -1;
+    }
+
+    fclose(fp);
+
+    // Tim chuoi "t=" trong du lieu doc duoc
+    if ((temp_str = strstr(buf, "t=")) == NULL) {
+        fprintf(stderr, "Failed to find temperature in sensor file\n");
+        return -1;
+    }
+
+    // Lay gia tri nhiet do sau "t="
+    temp_str += 2;
+    temp = strtof(temp_str, NULL);
+
+    // Nhiet do duoc doc tu DS18B20 thuong o don vi mili do C, can chia cho 1000 de chuyen sang do C
+    return temp / 1000;
+}
+
+int main(void) {
+    // duong dan den file thiet bi cam bien DS18B20 
+    char *sensor_file = "/sys/bus/w1/devices/28-3ce1d4434496/w1_slave";
+    wiringPiSetupGpio();
+    pinMode(led,OUTPUT);
+    // doc va in nhiet do
+    while (1) {
+        float temperature = read_temp(sensor_file);
+        if (temperature != -1) {
+            printf("Temperature: %.3f *C\n", temperature);
+            if(temperature>32){
+                digitalWrite(led,HIGH);
+                delay(200);
+            }
+            else{
+                digitalWrite(led,LOW);
+            }
+        }
+        else printf("Error :) \n");
+        sleep(2);
+    }
+    return 0;
+}
+
+
